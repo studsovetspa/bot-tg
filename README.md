@@ -18,4 +18,4 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 ### Создайте файл .env в корне проекта:
-BOT_TOKEN=vk1.a.YOUR_BOT_TOKEN_FROM_BOTFATHER
+BOT_TOKEN=token
