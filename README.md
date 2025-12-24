@@ -1,20 +1,20 @@
 # Телеграмм бот студенчесокго совета ФГУ
 Телеграмм бот с еще не подготовленным функционалом stay tunned!
 
-# Development
-## Клонируйте репозиторий
+## Development
+### Клонируйте репозиторий
 git clone https://github.com/studsovetspa/bot-tg.git
 cd bot-tg
 
-## Создайте виртуальное окружение
+### Создайте виртуальное окружение
 python -m venv venv
-### Windows:
+#### Windows:
 venv\Scripts\activate
-### Linux/Mac:
+#### Linux/Mac:
 source venv/bin/activate
 
-## Установите зависимости
+### Установите зависимости
 pip install -r requirements.txt
 
-##Создайте файл .env в корне проекта:
+### Создайте файл .env в корне проекта:
 BOT_TOKEN=vk1.a.YOUR_BOT_TOKEN_FROM_BOTFATHER
