@@ -4,6 +4,7 @@
 ## Development
 ### Клонируйте репозиторий
 git clone https://github.com/studsovetspa/bot-tg.git
+
 cd bot-tg
 
 ### Создайте виртуальное окружение
