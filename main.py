@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher
-from config import BOT_TOKEN, ADMIN_ID, STATS_FILE, APPEALS_FILE
+from config import BOT_TOKEN, ADMIN_IDS, STATS_FILE, APPEALS_FILE
 from handlers.user import user_router
 from handlers.admin import admin_router
 from handlers.appeals import appeals_router
@@ -29,10 +29,10 @@ async def main():
     try:
         bot_info = await bot.get_me()
         logger.info(f"✅ Бот: @{bot_info.username}")
-        if ADMIN_ID:
-            logger.info(f"👤 ID админа: {ADMIN_ID}")
+        if ADMIN_IDS:
+            logger.info(f"👤 ID админов: {', '.join(map(str, ADMIN_IDS))}")
         else:
-            logger.warning("⚠️ ID админа не установлен!")
+            logger.warning("⚠️ ID админов не установлены!")
     except Exception as e:
         logger.error(f"Ошибка получения информации о боте: {e}")
     
