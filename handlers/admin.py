@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from datetime import datetime
 import logging
-from config import ADMIN_IDS
+from config import is_admin
 from utils.database import (
     get_admin_appeals_summary, 
     get_appeal, 
@@ -25,7 +25,7 @@ class AdminStates(StatesGroup):
 @admin_router.message(Command("appeals"))
 async def admin_appeals_handler(message: Message):
     """Список обращений"""
-    if message.from_user.id not in ADMIN_IDS:
+    if not is_admin(message.from_user.id):
         return
     
     try:
@@ -38,7 +38,7 @@ async def admin_appeals_handler(message: Message):
 @admin_router.message(F.text.regexp(r'^/view_\d{4}$'))
 async def admin_view_appeal_handler(message: Message):
     """Просмотр обращения"""
-    if message.from_user.id not in ADMIN_IDS:
+    if not is_admin(message.from_user.id):
         return
     
     appeal_id = message.text.split('_')[1]
@@ -124,7 +124,7 @@ async def admin_view_appeal_handler(message: Message):
 @admin_router.message(F.text.regexp(r'^/reply_\d{4}$'))
 async def admin_start_reply_handler(message: Message, state: FSMContext):
     """Начало ответа через команду"""
-    if message.from_user.id not in ADMIN_IDS:
+    if not is_admin(message.from_user.id):
         return
     
     appeal_id = message.text.split('_')[1]
@@ -157,7 +157,7 @@ async def admin_start_reply_handler(message: Message, state: FSMContext):
 @admin_router.message(F.reply_to_message)
 async def admin_reply_to_message_handler(message: Message, state: FSMContext):
     """Ответ через Reply на сообщение обращения"""
-    if message.from_user.id not in ADMIN_IDS:
+    if not is_admin(message.from_user.id):
         return
     
     # Ищем обращение по message_id
@@ -254,7 +254,7 @@ async def admin_cancel_reply_handler(message: Message, state: FSMContext):
 @admin_router.message(AdminStates.waiting_for_reply)
 async def admin_process_reply_handler(message: Message, state: FSMContext):
     """Обработка ответа через команду"""
-    if message.from_user.id not in ADMIN_IDS:
+    if not is_admin(message.from_user.id):
         return
     
     data = await state.get_data()

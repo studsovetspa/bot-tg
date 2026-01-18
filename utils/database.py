@@ -1,13 +1,14 @@
 import json
 import logging
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from pathlib import Path
+import uuid
 
 logger = logging.getLogger(__name__)
 
 # Импортируем после определения logger
-from config import STATS_FILE, APPEALS_FILE
+from config import STATS_FILE, APPEALS_FILE, ACHIEVEMENTS_FILE
 
 
 # === Статистика ===
@@ -124,7 +125,7 @@ def create_appeal(user_id: int, username: Optional[str],
         "text": text or "",
         "media_type": media_type,
         "media_id": media_id,
-        "admin_message_ids": {},  # Будет установлен после отправки админам
+        "admin_message_ids": {},
         "created_at": datetime.now().isoformat(),
         "status": "new",
         "answer": None,
@@ -147,10 +148,8 @@ def get_appeal_by_message_id(message_id: int) -> Optional[tuple]:
     """Получает обращение по message_id (для reply)"""
     appeals = load_appeals()
     for appeal_id, appeal in appeals.items():
-        # Для обратной совместимости со старой версией
         if appeal.get("admin_message_id") == message_id:
             return appeal_id, appeal
-        # Новый формат с несколькими админами
         if "admin_message_ids" in appeal:
             for admin_id, msg_id in appeal["admin_message_ids"].items():
                 if msg_id == message_id:
@@ -199,7 +198,6 @@ def get_admin_appeals_summary() -> str:
             if len(appeal["text"]) > 50:
                 text_preview += "..."
             
-            # Добавляем информацию об альбоме
             media_info = ""
             if appeal.get('media_type') == 'media_group' and appeal.get('media_id'):
                 photo_count = len(appeal['media_id'].split(','))
@@ -211,4 +209,115 @@ def get_admin_appeals_summary() -> str:
             summary += f"\n<i>{text_preview}</i>"
             summary += f"\n/view_{appeal_id} /reply_{appeal_id}"
     
+    return summary
+
+# === Индивидуальные достижения ===
+
+def load_achievements() -> List[Dict]:
+    """Загружает все достижения из файла."""
+    if ACHIEVEMENTS_FILE.exists():
+        try:
+            with open(ACHIEVEMENTS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            logger.error(f"Ошибка загрузки достижений: {e}")
+            return []
+    return []
+
+def save_achievements(achievements: List[Dict]) -> None:
+    """Сохраняет список достижений в файл."""
+    try:
+        with open(ACHIEVEMENTS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(achievements, f, ensure_ascii=False, indent=2)
+    except IOError as e:
+        logger.error(f"Ошибка сохранения достижений: {e}")
+
+def create_achievement(reporter_id: int, reporter_name: str, reporter_role: str,
+                       student_name: str, description: str, points: int, 
+                       course: str, education_level: str) -> str:
+    """Создает новую запись о достижении и возвращает ее ID."""
+    achievements = load_achievements()
+    
+    achievement_id = str(uuid.uuid4())
+    
+    new_achievement = {
+        "id": achievement_id,
+        "reporter_id": reporter_id,
+        "reporter_name": reporter_name,
+        "reporter_role": reporter_role,
+        "student_name": student_name.strip(),
+        "education_level": education_level,
+        "course": course,
+        "description": description.strip(),
+        "points": points,
+        "status": "pending",  # pending, approved, rejected
+        "created_at": datetime.now().isoformat(),
+        "approver_id": None,
+        "approver_name": None,
+        "approved_at": None
+    }
+    
+    achievements.append(new_achievement)
+    save_achievements(achievements)
+    
+    return achievement_id
+
+def get_achievement(achievement_id: str) -> Optional[Dict]:
+    """Находит достижение по его ID."""
+    achievements = load_achievements()
+    for ach in achievements:
+        if ach["id"] == achievement_id:
+            return ach
+    return None
+
+def get_pending_achievements() -> List[Dict]:
+    """Возвращает список достижений, ожидающих подтверждения."""
+    achievements = load_achievements()
+    return [ach for ach in achievements if ach["status"] == "pending"]
+
+def update_achievement_status(achievement_id: str, status: str, approver_id: int, approver_name: str) -> bool:
+    """Обновляет статус достижения (approved/rejected)."""
+    achievements = load_achievements()
+    
+    for ach in achievements:
+        if ach["id"] == achievement_id:
+            ach["status"] = status
+            ach["approver_id"] = approver_id
+            ach["approver_name"] = approver_name
+            ach["approved_at"] = datetime.now().isoformat()
+            save_achievements(achievements)
+            return True
+    
+    return False
+
+def get_student_achievements_summary(student_name: str) -> str:
+    """Возвращает сводку по достижениям и баллам для конкретного студента."""
+    achievements = load_achievements()
+    
+    student_name_lower = student_name.lower().strip()
+    
+    student_achievements = [
+        ach for ach in achievements 
+        if ach["student_name"].lower() == student_name_lower and ach["status"] == "approved"
+    ]
+    
+    if not student_achievements:
+        return f"Не найдено подтвержденных индивидуальных достижений для студента: <b>{student_name}</b>."
+        
+    total_points = sum(ach["points"] for ach in student_achievements)
+    
+    # Берем данные из последнего добавленного достижения
+    last_achievement = student_achievements[-1]
+    education_info = f"{last_achievement.get('education_level', '')}, {last_achievement.get('course', '')} курс"
+
+    summary = f"🏆 <b>Индивидуальные достижения студента: {student_name}</b> ({education_info})\n"
+    summary += f"🏅 <b>Всего баллов: {total_points}</b>\n"
+    summary += f"📝 <b>Количество достижений: {len(student_achievements)}</b>\n"
+    
+    summary += "\n<b>Подтвержденные достижения:</b>\n"
+    
+    for i, ach in enumerate(student_achievements, 1):
+        summary += f"\n{i}. <b>{ach['points']} баллов</b> - <i>{ach['description']}</i>"
+        summary += f"\n   (Добавлено: {ach['reporter_role']} {ach['reporter_name']})\n"
+        
     return summary
